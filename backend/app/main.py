@@ -39,7 +39,7 @@ class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=1, max_length=128)
 
-class ComplaintCreate(BaseModel):
+class CreateComplaint(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1)
     category: str = Field(min_length=1, max_length=100)
@@ -253,7 +253,7 @@ def get_my_account(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/complaints", status_code=201)
 def create_complaint(
-    complaint: ComplaintCreate,
+    complaint: CreateComplaint,
     current_user: dict = Depends(get_current_user),
 ):
     if(current_user["role"] != "student"):

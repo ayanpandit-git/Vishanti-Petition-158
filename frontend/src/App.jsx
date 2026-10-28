@@ -1,154 +1,106 @@
-import { useState } from "react";
-import "./App.css";
+import { Navigate, Route, Routes } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ComplaintsPage from "./pages/ComplaintsPage";
+import NewComplaintPage from "./pages/NewComplaintPage";
+import Navbar from "./components/Navbar";
+import ProtectRoute from "./auth/ProtectRoute";
+import { useAuth } from "./auth/AuthContext";
 
-function App() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [priority, setPriority] = useState("Medium");
-  const [isAnonymous, setIsAnonymous] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [complaintId, setComplaintId] = useState(null);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-
-    setLoading(true);
-    setError("");
-    setComplaintId(null);
-
-    try {
-      const response = await fetch("http://localhost:8000/api/complaints", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          category: category.trim(),
-          priority: priority,
-          is_anonymous: isAnonymous,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (Array.isArray(data.detail)) {
-          const messages = data.detail.map(
-            (item) => `${item.loc.slice(1).join(".")}: ${item.msg}`,
-          );
-
-          throw new Error(messages.join("; "));
-        }
-
-        throw new Error(
-          typeof data.detail === "string"
-            ? data.detail
-            : "Failed to submit the complaint.",
-        );
-      }
-
-      setComplaintId(data.complaint_id);
-
-      setTitle("");
-      setDescription("");
-      setCategory("");
-      setPriority("Medium");
-      setIsAnonymous(false);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+export default function App() {
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
-      <title>Vishanti Petition</title>
-      <button
-        type="button"
-        onClick={() =>
-          document
-            .getElementById("complaint-form")
-            ?.scrollIntoView({ behavior: "smooth" })
-        }
-      >
-        File complaint
-      </button>
-
-      <form id="complaint-form" onSubmit={handleSubmit}>
-        <h2>Complaint form</h2>
-        <p>You can input your complaint details here</p>
-        <label htmlFor="Title">Title:</label>
-        <input
-          type="text"
-          id="Title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          maxLength={200}
-          required
+      <Navbar />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Navigate to={isAuthenticated ? "/complaints" : "/login"} replace />
+          }
         />
-        <label htmlFor="Description">Description:</label>
-        <textarea
-          id="Description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          required
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/complaints" replace />
+            ) : (
+              <LoginPage />
+            )
+          }
         />
-        <label htmlFor="Category">Category:</label>
-        <input
-          type="text"
-          id="Category"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-          placeholder="Hostel"
-          maxLength={100}
-          required
+        <Route
+          path="/register"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/complaints" replace />
+            ) : (
+              <RegisterPage />
+            )
+          }
         />
-        <label htmlFor="Priority">Priority:</label>
-        <select
-          id="Priority"
-          value={priority}
-          onChange={(event) => setPriority(event.target.value)}
-        >
-          <option value="Low" selected>
-            Low
-          </option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-        </select>
-        <label htmlFor="IsAnonymous">Do you wish to be anonymous?</label>
-        <input
-          type="checkbox"
-          id="IsAnonymous"
-          checked={isAnonymous}
-          onChange={(event) => setIsAnonymous(event.target.checked)}
+        <Route
+          path="/complaints"
+          element={
+            <ProtectRoute>
+              <ComplaintsPage />
+            </ProtectRoute>
+          }
         />
-        <button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-
-        {complaintId !== null && (
-          <div role="status">
-            <h3>Complaint filed successfully!</h3>
-            <p>Your complaint ID is: {complaintId}</p>
-            <p>Keep this ID for future reference.</p>
-          </div>
-        )}
-
-        {error && (
-          <div role="alert">
-            <h3>Submission failed</h3>
-            <p>{error}</p>
-          </div>
-        )}
-      </form>
+        <Route
+          path="/complaints/new"
+          element={
+            <ProtectRoute roles={["student"]}>
+              <NewComplaintPage />
+            </ProtectRoute>
+          }
+        />
+        <Route
+          path="/reviewer"
+          element={
+            <ProtectRoute roles={["reviewer"]}>
+              <div className="container py-5">
+                <h1 className="h2">Reviewer dashboard</h1>
+                <p className="text-muted">
+                  The assigned complaints will appear here.
+                </p>
+              </div>
+            </ProtectRoute>
+          }
+        />
+        <Route
+          path="/authority"
+          element={
+            <ProtectRoute roles={["authority"]}>
+              <div className="container py-5">
+                <h1 className="h2">Authority dashboard</h1>
+                <p className="text-muted">
+                  All complaints will be managed here.
+                </p>
+              </div>
+            </ProtectRoute>
+          }
+        />
+        <Route
+          path="/unauthorized"
+          element={
+            <div className="container py-5">
+              <h1>Access denied</h1>
+              <p>You don't have permission to view this page.</p>
+            </div>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <main className="container py-5">
+              <h1>Page not found</h1>
+              <p>The page you requested does not exist.</p>
+            </main>
+          }
+        />
+      </Routes>
     </>
   );
 }
-
-export default App;
